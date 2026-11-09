@@ -1,0 +1,46 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: front-ui
+  config:
+    import: "optional:consul:"
+  cloud:
+    consul:
+      host: ${CONSUL_HOST:localhost}
+      port: ${CONSUL_PORT:8500}
+      config:
+        format: YAML
+      discovery:
+        prefer-ip-address: true
+        instance-id: ${spring.application.name}:${random.value}
+    circuitbreaker:
+      bulkhead:
+        resilience4j:
+          enabled: false
+      resilience4j:
+        disable-thread-pool: true
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: front-ui
+            client-secret: ${FRONT_CLIENT_SECRET:front-ui-secret}
+            authorization-grant-type: authorization_code
+            scope: openid,profile
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+        provider:
+          keycloak:
+            authorization-uri: ${bank.keycloak.public-url:http://localhost:8180}/realms/bank/protocol/openid-connect/auth
+            token-uri: ${bank.keycloak.url:http://localhost:8180}/realms/bank/protocol/openid-connect/token
+            jwk-set-uri: ${bank.keycloak.url:http://localhost:8180}/realms/bank/protocol/openid-connect/certs
+            user-name-attribute: preferred_username
+
+bank:
+  logout-uri: ${bank.keycloak.public-url:http://localhost:8180}/realms/bank/protocol/openid-connect/logout
+  clients:
+    accounts-url: http://gateway-service
+    cash-url: http://gateway-service
+    transfer-url: http://gateway-service

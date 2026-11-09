@@ -1,0 +1,134 @@
+x-service: &service
+  restart: unless-stopped
+  environment: &service-env
+    CONSUL_HOST: consul
+    DB_HOST: postgres
+    DB_PORT: 5432
+    KEYCLOAK_URL: http://keycloak:8080
+    KEYCLOAK_PUBLIC_URL: http://localhost:8180
+  depends_on:
+    postgres:
+      condition: service_healthy
+    consul-config-loader:
+      condition: service_completed_successfully
+    keycloak:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: bank
+      POSTGRES_USER: bank
+      POSTGRES_PASSWORD: bank
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bank -d bank"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  consul:
+    image: hashicorp/consul:1.21
+    command: agent -dev -client=0.0.0.0
+    ports:
+      - "8500:8500"
+    healthcheck:
+      test: ["CMD-SHELL", "consul members"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  consul-config-loader:
+    image: hashicorp/consul:1.21
+    depends_on:
+      consul:
+        condition: service_healthy
+    environment:
+      CONSUL_HTTP_ADDR: http://consul:8500
+    volumes:
+      - ./consul:/consul-config:ro
+    command: ["consul", "kv", "put", "config/application/data", "@/consul-config/application.yml"]
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: http://localhost:8180
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "8180:8080"
+    volumes:
+      - ./keycloak/realm-bank.json:/opt/keycloak/data/import/realm-bank.json:ro
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9000 && printf 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q UP <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  notifications-service:
+    <<: *service
+    build:
+      context: .
+      dockerfile: notifications-service/Dockerfile
+    ports:
+      - "8094:8094"
+
+  accounts-service:
+    <<: *service
+    build:
+      context: .
+      dockerfile: accounts-service/Dockerfile
+    ports:
+      - "8091:8091"
+
+  cash-service:
+    <<: *service
+    build:
+      context: .
+      dockerfile: cash-service/Dockerfile
+    ports:
+      - "8092:8092"
+
+  transfer-service:
+    <<: *service
+    build:
+      context: .
+      dockerfile: transfer-service/Dockerfile
+    ports:
+      - "8093:8093"
+
+  gateway-service:
+    <<: *service
+    depends_on:
+      consul-config-loader:
+        condition: service_completed_successfully
+      keycloak:
+        condition: service_healthy
+    build:
+      context: .
+      dockerfile: gateway-service/Dockerfile
+    ports:
+      - "8090:8090"
+
+  front-ui:
+    <<: *service
+    depends_on:
+      consul-config-loader:
+        condition: service_completed_successfully
+      keycloak:
+        condition: service_healthy
+    build:
+      context: .
+      dockerfile: front-ui/Dockerfile
+    ports:
+      - "8080:8080"
+
+volumes:
+  postgres-data:

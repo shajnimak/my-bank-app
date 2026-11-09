@@ -1,0 +1,54 @@
+bank:
+  keycloak:
+    url: ${KEYCLOAK_URL:http://localhost:8180}
+    public-url: ${KEYCLOAK_PUBLIC_URL:http://localhost:8180}
+    issuer-uri: ${bank.keycloak.public-url}/realms/bank
+  outbox:
+    publish-delay: 5s
+    batch-size: 50
+
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:bank}
+    username: ${DB_USERNAME:bank}
+    password: ${DB_PASSWORD:bank}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${bank.keycloak.issuer-uri}
+          jwk-set-uri: ${bank.keycloak.url}/realms/bank/protocol/openid-connect/certs
+  http:
+    client:
+      connect-timeout: 2s
+      read-timeout: 10s
+  cloud:
+    circuitbreaker:
+      bulkhead:
+        resilience4j:
+          enabled: false
+      resilience4j:
+        disable-thread-pool: true
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 2
+        ignore-exceptions:
+          - org.springframework.web.client.HttpClientErrorException
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 10s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

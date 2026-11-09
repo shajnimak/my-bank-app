@@ -1,0 +1,40 @@
+server:
+  port: 8092
+
+spring:
+  application:
+    name: cash-service
+  config:
+    import: "optional:consul:"
+  cloud:
+    consul:
+      host: ${CONSUL_HOST:localhost}
+      port: ${CONSUL_PORT:8500}
+      config:
+        format: YAML
+      discovery:
+        prefer-ip-address: true
+        instance-id: ${spring.application.name}:${random.value}
+  datasource:
+    hikari:
+      schema: cash
+  flyway:
+    schemas: cash
+  security:
+    oauth2:
+      client:
+        registration:
+          cash-service:
+            provider: keycloak
+            client-id: cash-service
+            client-secret: ${CASH_CLIENT_SECRET:cash-service-secret}
+            authorization-grant-type: client_credentials
+        provider:
+          keycloak:
+            token-uri: ${bank.keycloak.url:http://localhost:8180}/realms/bank/protocol/openid-connect/token
+
+bank:
+  clients:
+    registration-id: cash-service
+    notifications-url: http://notifications-service
+    accounts-url: http://accounts-service
