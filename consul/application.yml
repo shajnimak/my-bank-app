@@ -9,7 +9,7 @@ bank:
 
 spring:
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:bank}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:bank}
     username: ${DB_USERNAME:bank}
     password: ${DB_PASSWORD:bank}
   security:
