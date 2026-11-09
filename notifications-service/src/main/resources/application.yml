@@ -1,0 +1,22 @@
+server:
+  port: 8094
+
+spring:
+  application:
+    name: notifications-service
+  config:
+    import: "optional:consul:"
+  cloud:
+    consul:
+      host: ${CONSUL_HOST:localhost}
+      port: ${CONSUL_PORT:8500}
+      config:
+        format: YAML
+      discovery:
+        prefer-ip-address: true
+        instance-id: ${spring.application.name}:${random.value}
+  datasource:
+    hikari:
+      schema: notifications
+  flyway:
+    schemas: notifications
