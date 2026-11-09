@@ -1,0 +1,40 @@
+server:
+  port: 8093
+
+spring:
+  application:
+    name: transfer-service
+  config:
+    import: "optional:consul:"
+  cloud:
+    consul:
+      host: ${CONSUL_HOST:localhost}
+      port: ${CONSUL_PORT:8500}
+      config:
+        format: YAML
+      discovery:
+        prefer-ip-address: true
+        instance-id: ${spring.application.name}:${random.value}
+  datasource:
+    hikari:
+      schema: transfer
+  flyway:
+    schemas: transfer
+  security:
+    oauth2:
+      client:
+        registration:
+          transfer-service:
+            provider: keycloak
+            client-id: transfer-service
+            client-secret: ${TRANSFER_CLIENT_SECRET:transfer-service-secret}
+            authorization-grant-type: client_credentials
+        provider:
+          keycloak:
+            token-uri: ${bank.keycloak.url:http://localhost:8180}/realms/bank/protocol/openid-connect/token
+
+bank:
+  clients:
+    registration-id: transfer-service
+    notifications-url: http://notifications-service
+    accounts-url: http://accounts-service
