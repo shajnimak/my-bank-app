@@ -18,6 +18,7 @@
 
 	<modules>
 		<module>notifications-service</module>
+		<module>accounts-service</module>
 	</modules>
 
 	<properties>

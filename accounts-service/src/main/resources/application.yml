@@ -1,0 +1,39 @@
+server:
+  port: 8091
+
+spring:
+  application:
+    name: accounts-service
+  config:
+    import: "optional:consul:"
+  cloud:
+    consul:
+      host: ${CONSUL_HOST:localhost}
+      port: ${CONSUL_PORT:8500}
+      config:
+        format: YAML
+      discovery:
+        prefer-ip-address: true
+        instance-id: ${spring.application.name}:${random.value}
+  datasource:
+    hikari:
+      schema: accounts
+  flyway:
+    schemas: accounts
+  security:
+    oauth2:
+      client:
+        registration:
+          accounts-service:
+            provider: keycloak
+            client-id: accounts-service
+            client-secret: ${ACCOUNTS_CLIENT_SECRET:accounts-service-secret}
+            authorization-grant-type: client_credentials
+        provider:
+          keycloak:
+            token-uri: ${bank.keycloak.url:http://localhost:8180}/realms/bank/protocol/openid-connect/token
+
+bank:
+  clients:
+    registration-id: accounts-service
+    notifications-url: http://notifications-service
